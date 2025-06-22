@@ -94,6 +94,77 @@ function App() {
     pdf.save('download.pdf');
   };
 
+const handleDownload = async () => {
+  const resume = document.getElementById('resume-preview');
+  if (!resume) return;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <!-- Tailwind CDN -->
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+        <style>
+          /* Ensure background colors and layout are preserved in print */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+            background: white;
+          }
+
+          /* Fix for dark background in PDF */
+          .bg-[#0e374e] {
+            background-color: #0e374e !important;
+          }
+
+          /* Ensure white text shows over dark bg */
+          .text-white {
+            color: white !important;
+          }
+
+          /* Fix Tailwind's arbitrary color class not working in Puppeteer */
+          .text-gray {
+            color: black;
+          }
+        </style>
+      </head>
+      <body>
+        ${resume.outerHTML}
+      </body>
+    </html>
+  `;
+
+  try {
+    const response = await fetch('http://localhost:4000/generate-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html }),
+    });
+
+    if (!response.ok) throw new Error('Failed to generate PDF');
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'resume.pdf';
+    link.click();
+  } catch (err) {
+    console.error('PDF generation error:', err);
+  }
+};
+
+
+
   const clearResume = () => {
     setDetails([]);
     setEducations([]);
@@ -135,7 +206,7 @@ function App() {
 
           <button className="flex items-center justify-center my-3 rounded-xl bg-gray-100 text-sky-900 px-1 w-[180px]">
             <Download className="w-5 h-5 mb-2 mr-2 mt-2" />
-            <span onClick={handleDownloadPDF} className="font-semibold">Download Resume</span>
+            <span onClick={handleDownload} className="font-semibold">Download Resume</span>
           </button>
         </div>
 
@@ -401,48 +472,62 @@ function App() {
                 ))}
               </ul>
 
-              {isAddingProject ? (
-                <div className="mb-4">
-                  {['name', 'tools', 'description'].map((field) => (
-                    <div className="mt-2" key={field}>
-                      <label className="font-semibold capitalize">
-                        {field.charAt(0).toUpperCase() + field.slice(1)}
-                      </label>
+            {isAddingProject ? (
+              <div className="mb-4">
+                {['name', 'tools', 'description'].map((field) => (
+                  <div className="mt-2" key={field}>
+                    <label className="font-semibold capitalize">
+                      {field.charAt(0).toUpperCase() + field.slice(1)}
+                    </label>
+                    {field === 'description' ? (
+                      <textarea
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 mb-2"
+                        placeholder="Enter description (one line per bullet)"
+                        value={newProject[field]}
+                        onChange={(e) =>
+                          setNewProject({ ...newProject, [field]: e.target.value })
+                        }
+                        rows={4}
+                      />
+                    ) : (
                       <input
                         type="text"
                         className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 mb-2"
                         placeholder={`Enter ${field}`}
                         value={newProject[field]}
-                        onChange={(e) => setNewProject({ ...newProject, [field]: e.target.value })}
+                        onChange={(e) =>
+                          setNewProject({ ...newProject, [field]: e.target.value })
+                        }
                       />
-                    </div>
-                  ))}
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => setIsAddingProject(false)}
-                      className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-black"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveProject}
-                      className="px-3 py-1 rounded bg-sky-600 text-white hover:bg-sky-700"
-                    >
-                      Save
-                    </button>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="flex justify-center">
+                ))}
+                <div className="flex gap-2 justify-end">
                   <button
-                    onClick={() => setIsAddingProject(true)}
-                    className="flex items-center p-3 border border-gray-300 rounded-xl bg-gray-100 hover:bg-gray-200"
+                    onClick={() => setIsAddingProject(false)}
+                    className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-black"
                   >
-                    <Plus className="w-4 h-4 text-black mr-2" />
-                    <span className="font-semibold">Add Project</span>
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveProject}
+                    className="px-3 py-1 rounded bg-sky-600 text-white hover:bg-sky-700"
+                  >
+                    Save
                   </button>
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setIsAddingProject(true)}
+                  className="flex items-center p-3 border border-gray-300 rounded-xl bg-gray-100 hover:bg-gray-200"
+                >
+                  <Plus className="w-4 h-4 text-black mr-2" />
+                  <span className="font-semibold">Add Project</span>
+                </button>
+              </div>
+            )}
             </div>
           )}
         </div>
@@ -539,34 +624,34 @@ function App() {
 
       {/* Preview Panel */}
       <div ref = {printRef} id="resume-preview" className="flex flex-grow justify-center border border-white h-full min-h-screen rounded-sm ml-4 mr-10 mt-4 bg-white overflow-auto">
-        <div className="w-full px-6 py-6">
-          <div className="bg-[#0e374e] py-9 px-6 rounded-t-md">
-            <h1 className="text-white text-center text-3xl font-bold">
+        <div className="w-full px-4 py-4">
+          <div style={{ backgroundColor: '#0e374e' }} className="bg-[#0e374e] py-3 px-3 rounded-t-md mb-2">
+            <h1 className="text-white text-center text-2xl font-bold">
               {details.fullName || 'Full Name'}
             </h1>
-            <div className="flex flex-col gap-[18px] w-fit mx-auto sm:flex-row sm:flex-wrap sm:justify-center mt-4">
+            <div className="flex flex-col gap-[25px] w-fit mx-auto sm:flex-row sm:flex-wrap sm:justify-center mt-4">
               <div className="flex items-center flex-wrap gap-1.5">
-                <Mail className="w-6 h-6 text-white" />
-                <span className="text-white">{details.email || 'example@mail.com'}</span>
+                <Mail className="w-4 h-4 text-white text-l" />
+                <span className="text-white text-sm">{details.email || 'example@mail.com'}</span>
               </div>
               <div className="flex items-center flex-wrap gap-1.5">
-                <Phone className="w-6 h-6 text-white" />
-                <span className="text-white">{details.phone || '+91 1234567890'}</span>
+                <Phone className="w-4 h-4 text-white text-l" />
+                <span className="text-white text-sm">{details.phone || '+91 1234567890'}</span>
               </div>
               <div className="flex items-center flex-wrap gap-1.5">
-                <MapPin className="w-6 h-6 text-white" />
-                <span className="text-white">{details.address || 'City, Country'}</span>
+                <MapPin className="w-4 h-4 text-white text-l" />
+                <span className="text-white text-sm">{details.address || 'City, Country'}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-3">
             {educations.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray mb-2">Education</h2>
-                <hr className='text-xl font-bold'></hr>
+              <div className="mb-2">
+                <h2 className="text-xl font-bold text-gray mb-1">Education</h2>
+                <hr className='text-l font-bold'></hr>
                 {educations.map((edu) => (
-                  <div key={edu.id} className="flex flex-row mb-2 justify-between mt-2">
+                  <div key={edu.id} className="flex flex-row mb-1 justify-between mt-2">
                     <div className='flex flex-col'>
                       <div className="font-semibold text-gray">{edu.schoolName}</div>
                       <div className="text-sm text-gray">
@@ -587,10 +672,10 @@ function App() {
             )}
 
             {skillsList.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray mb-2">Technical Skills</h2>
-                <hr className='text-xl font-bold mb-2'></hr>
-                <ul className="list-disc list-inside text-gray space-y-1">
+              <div className="mb-2">
+                <h2 className="text-xl font-bold text-gray mb-1">Technical Skills</h2>
+                <hr className='text-l font-bold mb-1'></hr>
+                <ul className="list-disc list-inside text-gray text-sm space-y-1">
                   {skillsList.map((skill, index) => (
                     <li key={index}>{skill}</li>
                   ))}
@@ -599,25 +684,32 @@ function App() {
             )}
 
             {projectsList.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray mb-2">Projects</h2>
-                <hr className='text-xl font-bold mb-2'></hr>
+              <div className="mb-2">
+                <h2 className="text-xl font-bold text-gray mb-1">Projects</h2>
+                <hr className='text-l font-bold mb-2'></hr>
                 {projectsList.map((proj) => (
                   <div>
-                    <div key={proj.id} className="text-gray font-semibold">• {proj.name}</div>
-                    <div className="text-gray text-sm ml-3 mt-2">Tools: {proj.tools}</div>
-                    <div className="text-gray text-sm ml-3 mt-2">{proj.description}</div>
+                    <div key={proj.id} className="text-gray font-semibold mt-2">• {proj.name}</div>
+                    <div className="text-gray text-sm ml-3 ">Tools: {proj.tools}</div>
+                    <ul className="list-disc ml-8 text-gray text-sm mt-1 space-y-1">
+                    {proj.description
+                      .split('\n')
+                      .filter(line => line.trim() !== '')
+                      .map((line, i) => (
+                        <li key={i}>{line.trim()}</li>
+                      ))}
+                  </ul>
                   </div>
                 ))}
               </div>
             )}
 
             {achievementsList.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray mb-2">Achievements</h2>
-                <hr className='text-xl font-bold mb-2'></hr>
+              <div className="mb-2">
+                <h2 className="text-xl font-bold text-gray mb-1">Achievements</h2>
+                <hr className='text-l font-bold mb-2'></hr>
                 {achievementsList.map((ach) => (
-                  <div key={ach.id} className="text-gray">• {ach.name}</div>
+                  <div key={ach.id} className="text-gray text-sm">• {ach.name}</div>
                 ))}
               </div>
             )}
