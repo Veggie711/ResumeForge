@@ -11,8 +11,6 @@ import {
   Plus,
 } from 'lucide-react';
 
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf'
 import uniqid from 'uniqid';
 
 function App() {
@@ -69,30 +67,6 @@ function App() {
   };
 
   const printRef = useRef();
-
-  const handleDownloadPDF = async () => {
-    const element = printRef.current;
-
-    // Capture the component as a canvas
-    const canvas = await html2canvas(element, {
-      scale: 2, // Improves resolution
-      useCORS: true, // For external images
-    });
-
-    const imageData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4',
-    });
-
-    const imgProps = pdf.getImageProperties(imageData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    pdf.addImage(imageData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('download.pdf');
-  };
 
 const handleDownload = async () => {
   const resume = document.getElementById('resume-preview');
@@ -191,7 +165,7 @@ const handleDownload = async () => {
           className={`flex flex-col items-center justify-center px-6 py-4 rounded-xl w-full transition ${active === 'customize' ? 'bg-gray-100 text-sky-900' : 'bg-white text-black hover:bg-gray-50'}`}
         >
           <Wrench className="w-6 h-6 mb-2" />
-          <span className="font-semibold">Customize</span>
+          <span className="font-semibold">ATS</span>
         </button>
       </div>
 
